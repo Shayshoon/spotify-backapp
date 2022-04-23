@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 import requests
 from cofiguration import env
-from flask import Flask, redirect, request
+from flask import Flask, jsonify, make_response, redirect, request
 
 config = env()
 
@@ -88,6 +88,63 @@ def get_tracks_route():
         headers={'Authorization': 'Bearer ' + access_token},
     )
 
-    print(str(f"{config.SPOTIFY_API_URL}/v1/me/tracks"))
-
     return spotify_response.json()
+
+
+@app.route("/refresh_token")
+def refresh_token_route():
+    # requesting access token from refresh token
+    refresh_token = request.cookies.get('refresh_token')
+    print(refresh_token)
+    token = 'Basic ' + str(
+        base64.b64encode(
+            (f"{config.CLIENT_ID}:{config.CLIENT_SECRET}".encode('utf-8'))),
+        'utf-8')
+
+    spotify_response = requests.post(
+        f'{config.SPOTIFY_ACCOUNTS_SERVICE_URL}/api/token',
+        headers={'Authorization': token},
+        data={
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token
+        })
+
+    if spotify_response.ok:
+        response_json = spotify_response.json()
+        access_token = response_json['access_token']
+
+        res = jsonify(access_token=access_token)
+        res.set_cookie('access_token', access_token)
+
+        return res
+    else:
+        res = make_response()
+        res.status_code = spotify_response.status_code
+        res.set_data(spotify_response.text)
+
+        return res
+
+
+# app.get('/refresh_token', function (req, res) {
+
+#   // requesting access token from refresh token
+#   var refresh_token = req.query.refresh_token;
+#   var authOptions = {
+#     url: `${SPOTIFY_ACCOUNTS_SERVICE_URL}/api/token`,
+#     headers: { 'Authorization': 'Basic ' + (new Buffer(CLIENT_ID + ':' + CLIENT_SECRET).toString('base64')) },
+#     form: {
+#       grant_type: 'refresh_token',
+#       refresh_token: refresh_token
+#     },
+#     json: true
+#   };
+
+#   request.post(authOptions, function (error, response, body) {
+#     if (!error && response.statusCode === 200) {
+#       var access_token = body.access_token;
+#       res.send({
+#         'access_token': access_token
+#       });
+#     }
+#   });
+# });
