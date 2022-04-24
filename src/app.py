@@ -79,18 +79,6 @@ def callback_route():
             return res
 
 
-@app.route("/my-tracks")
-def get_tracks_route():
-    access_token = request.cookies.get('access_token')
-
-    spotify_response = requests.get(
-        url=f"{config.SPOTIFY_API_URL}/v1/me/tracks?limit=50",
-        headers={'Authorization': 'Bearer ' + access_token},
-    )
-
-    return spotify_response.json()
-
-
 @app.route("/refresh_token")
 def refresh_token_route():
     # requesting access token from refresh token
@@ -123,3 +111,40 @@ def refresh_token_route():
         res.set_data(spotify_response.text)
 
         return res
+
+
+@app.route("/my-tracks")
+def get_tracks_route():
+    access_token = request.cookies.get('access_token')
+
+    return fetch_my_spotify_tracks(access_token)
+
+
+def fetch_my_spotify_tracks(access_token):
+    MAX_LIMIT = 50
+
+    library = []
+    counter = 1
+
+    curr_response = fetch_spotify_tracks(MAX_LIMIT, 0, access_token)
+
+    while len(curr_response['items']) > 0:
+        library.extend(curr_response['items'])
+        print(f'fetched {len(library)} tracks from spotify')
+
+        curr_response = fetch_spotify_tracks(MAX_LIMIT, MAX_LIMIT * counter,
+                                             access_token)
+        counter += 1
+
+    return jsonify(library)
+
+
+def fetch_spotify_tracks(limit, offset, access_token):
+    response = requests.get(
+        url=
+        f"{config.SPOTIFY_API_URL}/v1/me/tracks?limit={limit}&offset={offset}",
+        headers={'Authorization': 'Bearer ' + access_token},
+    )
+
+    print(f'got status code {response.status_code} from spotify')
+    return response.json()
