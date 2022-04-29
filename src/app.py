@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 import requests
 from cofiguration import env
 from flask import Flask, jsonify, make_response, redirect, request
+from markupsafe import escape
 
 config = env()
 
@@ -118,38 +119,82 @@ def refresh_token_route():
         return res
 
 
-@app.route("/my-tracks")
+@app.route("/playlists")
+def get_playlists_route():
+    access_token = request.cookies.get('access_token')
+
+    return fetch_all(fetch_spotify_playlists, access_token)
+
+
+@app.route("/playlists/<playlist_id>")
+def get_playlist_route(playlist_id):
+    access_token = request.cookies.get('access_token')
+
+    return fetch_playlist(escape(playlist_id), access_token)
+
+
+@app.route("/tracks")
 def get_tracks_route():
     access_token = request.cookies.get('access_token')
 
-    return fetch_my_spotify_tracks(access_token)
+    return fetch_all(fetch_spotify_tracks, access_token)
 
 
-def fetch_my_spotify_tracks(access_token):
+@app.route("/albums")
+def get_albums_route():
+    access_token = request.cookies.get('access_token')
+
+    return fetch_all(fetch_spotify_albums, access_token)
+
+
+def fetch_all(fetch_item, access_token):
     MAX_LIMIT = 50
 
-    library = []
+    all_items = []
     counter = 1
 
-    curr_response = fetch_spotify_tracks(MAX_LIMIT, 0, access_token)
+    curr_response = fetch_item(MAX_LIMIT, 0, access_token)
 
     while len(curr_response['items']) > 0:
-        library.extend(curr_response['items'])
-        print(f'fetched {len(library)} tracks from spotify')
+        all_items.extend(curr_response['items'])
+        print(f'fetched {len(all_items)} items from spotify')
 
-        curr_response = fetch_spotify_tracks(MAX_LIMIT, MAX_LIMIT * counter,
-                                             access_token)
+        curr_response = fetch_item(MAX_LIMIT, MAX_LIMIT * counter,
+                                   access_token)
+
         counter += 1
 
-    return jsonify(library)
+    return jsonify(all_items)
 
 
-def fetch_spotify_tracks(limit, offset, access_token):
+def fetch_spotify_item(url, access_token):
     response = requests.get(
-        url=
-        f"{config.SPOTIFY_API_URL}/v1/me/tracks?limit={limit}&offset={offset}",
+        url=url,
         headers={'Authorization': 'Bearer ' + access_token},
     )
 
     print(f'got status code {response.status_code} from spotify')
     return response.json()
+
+
+def fetch_spotify_albums(limit, offset, access_token):
+    return fetch_spotify_item(
+        f"{config.SPOTIFY_API_URL}/v1/me/albums?limit={limit}&offset={offset}",
+        access_token)
+
+
+def fetch_spotify_tracks(limit, offset, access_token):
+    return fetch_spotify_item(
+        f"{config.SPOTIFY_API_URL}/v1/me/tracks?limit={limit}&offset={offset}",
+        access_token)
+
+
+def fetch_spotify_playlists(limit, offset, access_token):
+    return fetch_spotify_item(
+        f"{config.SPOTIFY_API_URL}/v1/me/playlists?limit={limit}&offset={offset}",
+        access_token)
+
+
+def fetch_playlist(playlist_id, access_token):
+    return fetch_spotify_item(
+        f"{config.SPOTIFY_API_URL}/v1/playlists/{playlist_id}", access_token)
