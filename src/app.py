@@ -71,12 +71,17 @@ def callback_route():
             access_token, refresh_token = spotify_response.json(
             )['access_token'], spotify_response.json()['refresh_token']
 
-            res = redirect('/my-tracks')
+            res = redirect('/home')
             res.set_cookie('access_token', access_token)
             res.set_cookie('refresh_token', refresh_token)
             res.delete_cookie(STATE_COOKIE_KEY)
 
             return res
+
+
+@app.route("/home")
+def home_route():
+    return "<h1>HOME</h1>"
 
 
 @app.route("/refresh_token")
