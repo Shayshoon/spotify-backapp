@@ -1,6 +1,7 @@
 import base64
 from secrets import token_urlsafe
 from urllib.parse import urlencode
+import pandas as pd
 
 import requests
 from cofiguration import env
@@ -136,8 +137,11 @@ def get_playlist_route(playlist_id):
 @app.route("/tracks")
 def get_tracks_route():
     access_token = request.cookies.get('access_token')
+    query_params = request.args
+    type = query_params.get('type')
+    delimiter = query_params.get('delimiter')
 
-    return fetch_all(fetch_spotify_tracks, access_token)
+    return fetch_all(fetch_spotify_tracks, access_token, type)
 
 
 @app.route("/albums")
@@ -147,7 +151,33 @@ def get_albums_route():
     return fetch_all(fetch_spotify_albums, access_token)
 
 
-def fetch_all(fetch_item, access_token):
+def parse_tracks_to_csv(json_tracks):
+    dt = pd.DataFrame({
+        'spotify_id': [],
+        'name': [],
+        'album_name': [],
+        'artist': [],
+        'isrc': [],
+        'spotify_link': [],
+        'spotify_preview_link': []
+    })
+
+    for track in json_tracks:
+        track_object = track['track']
+        dt.append({
+            'spotify_id': [track_object['id']],
+            'name': [track_object['name']],
+            'album_name': [track_object['album']['name']],
+            'artist': [track_object['artists'][0]['name']],
+            'isrc': [track_object['external_ids']['isrc']],
+            'spotify_link': [track_object['external_urls']['spotify']],
+            'spotify_preview_link': [track_object['preview_url']]
+        })
+
+    return dt.to_csv(sep=',')
+
+
+def fetch_all(fetch_item, access_token, type='json'):
     MAX_LIMIT = 50
 
     all_items = []
@@ -164,7 +194,15 @@ def fetch_all(fetch_item, access_token):
 
         counter += 1
 
-    return jsonify(all_items)
+    if type == 'json' or type == None:
+        return jsonify(all_items)
+    elif type == 'csv':
+        output = make_response(parse_tracks_to_csv(all_items))
+        output.headers[
+            "Content-Disposition"] = "attachment; filename=export.csv"
+        output.headers["Content-type"] = "text/csv"
+
+        return output
 
 
 def fetch_spotify_item(url, access_token):
