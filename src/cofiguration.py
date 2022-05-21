@@ -6,7 +6,7 @@ load_dotenv()
 class config:
     
     def __init__(self):
-        self.PORT = environ['PORT'] or 8080
+        self.PORT = environ['FLASK_RUN_PORT'] or 8080
         self.CLIENT_ID = environ['CLIENT_ID']
         self.CLIENT_SECRET = environ['CLIENT_SECRET']
         self.SPOTIFY_API_URL = environ['SPOTIFY_API_URL'] or 'https://api.spotify.com'

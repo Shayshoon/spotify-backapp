@@ -14,7 +14,6 @@ This project is meant to backup all of you spotify library.
 
 | Name | Description | Default value |
 |--------------|-----------|------------|
-| PORT | The port specified for the return address | `8080` |
 | FLASK_RUN_PORT | The port specified for Flask server | `8080` |
 | FLASK_APP | Path to the flask server module | `src/app` |
 | CLIENT_ID | Spotify client id | `None` |
